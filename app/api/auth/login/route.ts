@@ -70,10 +70,11 @@ export async function POST(req: NextRequest) {
       name: "domain_manager_token",
       value: token,
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      // secure: process.env.NODE_ENV === "production",
+      secure: false,
       sameSite: "lax",
       path: "/",
-      maxAge: 60 * 60 * 1 ,
+      maxAge: 60 * 60 * 1,
     });
 
     return response;
