@@ -98,7 +98,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
         new: true,
         runValidators: true,
       },
-    ).populate("registrar");
+    );
 
     if (!domain) {
       return NextResponse.json(

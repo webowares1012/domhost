@@ -11,6 +11,8 @@ export interface IDomain extends Document {
   currency: string;
   autoRenew: boolean;
   notes?: string;
+  deleted: boolean;
+  deletedAt: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -49,7 +51,7 @@ const DomainSchema = new Schema<IDomain>(
       type: String,
       enum: {
         values: [
-          "deleted",
+          "active", "banned"
         ],
         message: "{VALUE} is not a valid status",
       },
@@ -63,7 +65,7 @@ const DomainSchema = new Schema<IDomain>(
 
     currency: {
       type: String,
-      default: "INR",
+      default: "USD",
     },
 
     autoRenew: {
@@ -75,6 +77,15 @@ const DomainSchema = new Schema<IDomain>(
       type: String,
       trim: true,
       default: "",
+    },
+
+    deleted: {
+      type: Boolean,
+      default: false,
+    },
+    deletedAt: {
+      type: Date,
+      default: null,
     },
   },
   {

@@ -441,19 +441,19 @@ export default function DomainsPage() {
                 </th>
 
                 <th className="px-5 py-4 font-semibold text-slate-600">
-                  Purchased From
-                </th>
-
-                <th className="px-5 py-4 font-semibold text-slate-600">
-                  Purchased Date
-                </th>
-
-                <th className="px-5 py-4 font-semibold text-slate-600">
-                  Expiry
+                  Provider
                 </th>
 
                 <th className="px-5 py-4 font-semibold text-slate-600">
                   Status
+                </th>
+
+                <th className="px-5 py-4 font-semibold text-slate-600">
+                  Expiry Date
+                </th>
+
+                <th className="px-5 py-4 font-semibold text-slate-600">
+                  Expiry Status
                 </th>
 
                 <th className="w-16 px-5 py-4" />
@@ -627,11 +627,9 @@ function DomainRow({
 
         {/* Purchase Date */}
         <td className="px-5 py-4 text-slate-600">
-          {domain.purchaseDate
-            ? new Date(
-              domain.purchaseDate,
-            ).toLocaleDateString()
-            : "—"}
+          <DomainStatusBadge status={domain.status} message={""} />
+
+
         </td>
 
         {/* Expiry */}
@@ -756,7 +754,7 @@ function DomainRow({
                 {/* Currency */}
                 <div>
                   <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                    Currency
+                    Created On
                   </p>
 
                   <p className="mt-1 text-base font-semibold uppercase text-slate-900">

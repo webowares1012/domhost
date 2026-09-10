@@ -70,16 +70,18 @@ export async function POST(req: NextRequest) {
       name: "domain_manager_token",
       value: token,
       httpOnly: true,
-      // secure: process.env.NODE_ENV === "production",
-      secure: true,
+      secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
       maxAge: 60 * 60 * 1,
     });
+    console.log(process.env.NODE_ENV)
 
     return response;
   } catch (error) {
     console.error(error);
+    console.log(process.env.NODE_ENV + "-------")
+
 
     return NextResponse.json(
       {
