@@ -11,6 +11,7 @@ import {
   ChevronDown,
   ChevronUp,
   X,
+  Edit,
 } from "lucide-react";
 
 import DomainStatusBadge from "@/components/domains/DomainStatusBadge";
@@ -27,10 +28,40 @@ interface Domain {
   currency: string;
   autoRenew: boolean;
   notes: string;
+  createdAt: string;
+}
+
+interface Category {
+  _id: string;
+  name: string;
+  slug: string;
+}
+
+interface Provider {
+  _id: string;
+  name: string;
+  slug: string;
+}
+
+function formatDateTime(dateString?: string | Date) {
+  if (!dateString) return "N/A";
+
+  return new Date(dateString).toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+  });
 }
 
 export default function DomainsPage() {
   const [domains, setDomains] = useState<Domain[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalDomains, setTotalDomains] = useState(0);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
   const [purchasedFrom, setPurchasedFrom] = useState("all");
@@ -38,84 +69,80 @@ export default function DomainsPage() {
   const [loading, setLoading] = useState(false);
   const [expandedDomain, setExpandedDomain] = useState<string | null>(null);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [categoryLoading, setCategoryLoading] = useState(true);
+  const [providers, setProviders] = useState<Provider[]>([]);
+  const [providerLoading, setProviderLoading] = useState(true);
+  const [sortBy, setSortBy] = useState("created_desc");
+  const [expiryFilter, setExpiryFilter] = useState("all");
+
+  const handleSearchChange = (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    setSearch(event.target.value);
+    setCurrentPage(1);
+  };
+
+  const handleStatusChange = (value: string) => {
+    setStatus(value);
+    setCurrentPage(1);
+  };
+
+  const handleCategoryChange = (value: string) => {
+    setCategory(value);
+    setCurrentPage(1);
+  };
+
+  const handlePurchasedFromChange = (value: string) => {
+    setPurchasedFrom(value);
+    setCurrentPage(1);
+  };
 
   async function fetchDomains() {
     try {
       setLoading(true);
-
       const params = new URLSearchParams();
+      params.set("page", String(currentPage));
+      params.set("sortBy", sortBy);
+      params.set("expiryFilter", expiryFilter);
 
-      if (search.trim()) {
-        params.set(
-          "search",
-          search.trim(),
-        );
-      }
-
-      if (status !== "all") {
-        params.set("status", status);
-      }
-
-      if (category !== "all") {
-        params.set(
-          "category",
-          category,
-        );
-      }
-
-      if (
-        purchasedFrom !== "all"
-      ) {
-        params.set(
-          "purchasedFrom",
-          purchasedFrom,
-        );
-      }
+      if (search.trim()) { params.set("search", search.trim(),); }
+      if (status !== "all") { params.set("status", status); }
+      if (category !== "all") { params.set("category", category,); }
+      if (purchasedFrom !== "all") { params.set("purchasedFrom", purchasedFrom,); }
 
       const response = await fetch(
         `/api/domains?${params.toString()}`,
         {
           credentials: "include",
+          cache: "no-store",
         },
       );
 
-      const data =
-        await response.json();
-
+      const data = await response.json();
       if (!response.ok) {
-        console.error(
-          data.message ||
-          "Failed to fetch domains",
-        );
-
+        console.error(data.message || "Failed to fetch domains",);
         return;
       }
 
-      if (data.success) {
-        setDomains(
-          data.domains || [],
-        );
-      }
+
+
+      setDomains(data.domains);
+      console.log(JSON.stringify(data) + "-=-=-=-=-=-")
+      setTotalPages(data.pagination.totalPages);
+      setTotalDomains(data.pagination.totalDomains);
+
     } catch (error) {
-      console.error(
-        "Fetch domains error:",
-        error,
-      );
+      console.error("Fetch domains error:", error,);
     } finally {
       setLoading(false);
     }
   }
 
-  /*
-   * Initial load
-   */
   useEffect(() => {
     fetchDomains();
   }, []);
 
-  /*
-   * Search and filters
-   */
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchDomains();
@@ -124,15 +151,15 @@ export default function DomainsPage() {
     return () =>
       clearTimeout(timer);
   }, [
+    currentPage,
     search,
     status,
     category,
     purchasedFrom,
+    expiryFilter,
+    sortBy,
   ]);
 
-  /*
-   * Toggle expanded row
-   */
   function toggleExpanded(
     domainId: string,
   ) {
@@ -142,13 +169,9 @@ export default function DomainsPage() {
           ? null
           : domainId,
     );
-
     setOpenMenu(null);
   }
 
-  /*
-   * Delete domain
-   */
   async function deleteDomain(
     domainId: string,
   ) {
@@ -213,9 +236,6 @@ export default function DomainsPage() {
     }
   }
 
-  /*
-   * Close menu when clicking outside
-   */
   useEffect(() => {
     function handleClickOutside() {
       setOpenMenu(null);
@@ -235,6 +255,81 @@ export default function DomainsPage() {
       );
     };
   }, [openMenu]);
+
+  useEffect(() => {
+    fetchCategories();
+    fetchProviders();
+  }, []);
+
+  async function fetchCategories() {
+    try {
+      setCategoryLoading(true);
+
+      const response = await fetch("/api/categories", {
+        method: "GET",
+        credentials: "include",
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error(data.message || "Failed to fetch categories");
+        return;
+      }
+
+      setCategories(data.categories || []);
+    } catch (error) {
+      console.error("Fetch categories error:", error);
+    } finally {
+      setCategoryLoading(false);
+    }
+  }
+
+  async function fetchProviders() {
+    try {
+      setProviderLoading(true);
+
+      const response = await fetch("/api/providers", {
+        method: "GET",
+        credentials: "include",
+        cache: "no-store",
+      });
+
+      const text = await response.text();
+
+      let data: any = {};
+
+      if (text) {
+        try {
+          data = JSON.parse(text);
+        } catch {
+          console.error(
+            "Providers API returned invalid JSON:",
+            text,
+          );
+        }
+      }
+
+      if (!response.ok) {
+        console.error(
+          "Providers API error:",
+          response.status,
+          data,
+        );
+
+        return;
+      }
+
+      setProviders(data.providers || []);
+    } catch (error) {
+      console.error(
+        "Fetch providers error:",
+        error,
+      );
+    } finally {
+      setProviderLoading(false);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -296,21 +391,12 @@ export default function DomainsPage() {
             <option value="all">
               All Status
             </option>
-
             <option value="active">
               Active
             </option>
 
-            <option value="expiring">
-              Expiring
-            </option>
-
-            <option value="expired">
-              Expired
-            </option>
-
-            <option value="inactive">
-              Inactive
+            <option value="banned">
+              Banned
             </option>
           </select>
 
@@ -322,39 +408,23 @@ export default function DomainsPage() {
                 e.target.value,
               )
             }
+            disabled={categoryLoading}
             className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-slate-400"
           >
-            <option value="all">
-              All Categories
+            <option value="">
+              {categoryLoading
+                ? "Loading categories..."
+                : "Select category"}
             </option>
 
-            <option value="business">
-              Business
-            </option>
-
-            <option value="personal">
-              Personal
-            </option>
-
-            <option value="client">
-              Client
-            </option>
-
-            <option value="project">
-              Project
-            </option>
-
-            <option value="ecommerce">
-              Ecommerce
-            </option>
-
-            <option value="portfolio">
-              Portfolio
-            </option>
-
-            <option value="other">
-              Other
-            </option>
+            {categories.map((category) => (
+              <option
+                key={category._id}
+                value={category.slug}
+              >
+                {category.name}
+              </option>
+            ))}
           </select>
 
           {/* Purchased From */}
@@ -365,31 +435,60 @@ export default function DomainsPage() {
                 e.target.value,
               )
             }
+            disabled={providerLoading}
             className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-slate-400"
           >
-            <option value="all">
-              All Providers
+            <option value="">
+              {providerLoading
+                ? "Loading providers..."
+                : "Select provider"}
             </option>
 
-            <option value="namecheap">
-              Namecheap
-            </option>
+            {providers.map((provider) => (
+              <option
+                key={provider._id}
+                value={provider.slug}
+              >
+                {provider.name}
+              </option>
+            ))}
+          </select>
 
-            <option value="hostinger">
-              Hostinger
-            </option>
+          <select
+            value={expiryFilter}
+            onChange={(e) => {
+              setExpiryFilter(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+          >
+            <option value="all">All</option>
+            <option value="expired">Expired</option>
+            <option value="expiring_30">Expiring</option>
+            <option value="after_30">Active</option>
+          </select>
 
-            <option value="godaddy">
-              GoDaddy
-            </option>
+          <select
+            value={sortBy}
+            onChange={(e) => {
+              setSortBy(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+          >
+            <option value="created_desc">Newest</option>
+            <option value="created_asc">Oldest</option>
+            <option value="name_asc">A–Z</option>
+            <option value="name_desc">Z–A</option>
+            <option value="expiry_asc">Expirying first</option>
+            <option value="expiry_desc">Expiry last</option>
           </select>
 
           {/* Clear Filters */}
           {(search ||
             status !== "all" ||
             category !== "all" ||
-            purchasedFrom !==
-            "all") && (
+            purchasedFrom !== "all") && (
               <button
                 type="button"
                 onClick={() => {
@@ -412,15 +511,9 @@ export default function DomainsPage() {
 
       {/* Result count */}
       <div className="text-sm text-slate-500">
-        Showing{" "}
-        <span className="font-semibold text-slate-700">
-          {domains.length}
-        </span>{" "}
-        domain
-        {domains.length !== 1
-          ? "s"
-          : ""}
+        Showing {domains.length} of {totalDomains} domains
       </div>
+
 
       {/* Table */}
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -456,7 +549,9 @@ export default function DomainsPage() {
                   Expiry Status
                 </th>
 
-                <th className="w-16 px-5 py-4" />
+                <th className="w-16 px-5 py-4" >
+                  Actions
+                </th>
               </tr>
             </thead>
 
@@ -551,6 +646,32 @@ export default function DomainsPage() {
         )}
       </div>
 
+      {totalPages > 1 && (
+        <div className="mt-6 flex items-center justify-center gap-4">
+          <button
+            type="button"
+            disabled={currentPage === 1}
+            onClick={() => setCurrentPage((page) => page - 1)}
+            className="rounded-lg border px-4 py-2 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Previous
+          </button>
+
+          <span className="text-sm text-gray-600">
+            Page {currentPage} of {totalPages}
+          </span>
+
+          <button
+            type="button"
+            disabled={currentPage === totalPages}
+            onClick={() => setCurrentPage((page) => page + 1)}
+            className="rounded-lg border px-4 py-2 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Next
+          </button>
+        </div>
+      )}
+
 
     </div>
   );
@@ -628,8 +749,6 @@ function DomainRow({
         {/* Purchase Date */}
         <td className="px-5 py-4 text-slate-600">
           <DomainStatusBadge status={domain.status} message={""} />
-
-
         </td>
 
         {/* Expiry */}
@@ -646,160 +765,143 @@ function DomainRow({
         <td className="px-5 py-4">
           <div>
             <DomainStatusBadge status={domainStatus.status} message={domainStatus.message} />
-
-
           </div>
         </td>
 
         <td className="px-5 py-4 text-right">
           {/* Show More */}
-          <button
-            type="button"
-            onClick={
-              onToggleExpanded
-            }
-            className="flex w-full items-center gap-3  py-2.5 text-sm text-slate-700 transition hover:bg-slate-50"
-          >
-            {isExpanded ? (
-              <ChevronUp
-                size={16}
-              />
-            ) : (
-              <ChevronDown
-                size={16}
-              />
-            )}
-
-
-          </button>
-
-        </td>
-
-        {/* Three dot menu */}
-        <td className="relative  py-4 text-right">
-          <button
-            type="button"
-            onClick={onMenuToggle}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-200 hover:text-slate-900"
-            aria-label="Domain actions"
-          >
-            <MoreVertical
-              size={20}
-            />
-          </button>
-
-          {isMenuOpen && (
-            <div
-              onClick={(e) =>
-                e.stopPropagation()
-              }
-              className="absolute right-5 top-14 z-50 w-44 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-left shadow-lg"
+          <div className="flex">
+            <button
+              type="button"
+              onClick={onToggleExpanded}
+              className="flex w-full items-center gap-3  py-2.5 text-sm text-slate-700 transition hover:bg-slate-50"
             >
-              {/* Edit */}
-              <Link
-                href={`/dashboard/domains/${domain._id}`}
-                className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 transition hover:bg-slate-50"
-              >
-                <Pencil
-                  size={16}
-                />
+              {isExpanded ? (
+                <ChevronUp size={16} />
+              ) : (
+                <ChevronDown size={16} />
+              )}
+            </button>
 
-                Edit
-              </Link>
-
-
-              <div className="my-1 border-t border-slate-100" />
-
-              {/* Delete */}
+            {/* Edit */}
+            <Link
+              href={`/dashboard/domains/${domain._id}`}
+              className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 transition hover:bg-slate-50"
+            >
+              <Edit size={16} />
+            </Link>
+            <div className="relative">
               <button
                 type="button"
-                onClick={onDelete}
-                className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-600 transition hover:bg-red-50"
+                onClick={onMenuToggle}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-200 hover:text-slate-900"
+                aria-label="Domain actions"
               >
-                <Trash2
-                  size={16}
+                <MoreVertical
+                  size={20}
                 />
-
-                Delete
               </button>
+              {isMenuOpen && (
+                <div
+                  onClick={(e) =>
+                    e.stopPropagation()
+                  }
+                  className="absolute right-0 z-50 w-44 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-left shadow-lg"
+                >
+                  <div className="my-1 border-t border-slate-100" />
+                  {/* Delete */}
+                  <button
+                    type="button"
+                    onClick={onDelete}
+                    className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-600 transition hover:bg-red-50"
+                  >
+                    <Trash2 size={16} />
+                    Delete
+                  </button>
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </td>
-      </tr>
+      </tr >
+
+
 
       {/* Expanded details */}
-      {isExpanded && (
-        <tr className="bg-slate-50">
-          <td
-            colSpan={9}
-            className="px-5 pb-5"
-          >
-            <div className="rounded-xl border border-slate-200 bg-white p-5">
-              <div className="grid gap-5 md:grid-cols-3">
-                {/* Renewal Cost */}
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                    Renewal Cost
-                  </p>
+      {
+        isExpanded && (
+          <tr className="bg-slate-50">
+            <td
+              colSpan={9}
+              className="px-5 pb-5"
+            >
+              <div className="rounded-xl border border-slate-200 bg-white p-5">
+                <div className="grid gap-5 md:grid-cols-3">
+                  {/* Renewal Cost */}
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                      Cost of Purchase
+                    </p>
 
-                  <p className="mt-1 text-base font-semibold text-slate-900">
-                    {domain.currency}{" "}
-                    {Number(
-                      domain.renewalCost ||
-                      0,
-                    ).toLocaleString()}
-                  </p>
-                </div>
+                    <p className="mt-1 text-base font-semibold text-slate-900">
+                      {domain.currency}{" "}
+                      {Number(
+                        domain.renewalCost ||
+                        0,
+                      ).toLocaleString()}
+                    </p>
+                  </div>
 
-                {/* Currency */}
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                    Created On
-                  </p>
+                  {/* Currency */}
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                      Created On
+                    </p>
 
-                  <p className="mt-1 text-base font-semibold uppercase text-slate-900">
-                    {domain.currency ||
-                      "—"}
-                  </p>
-                </div>
-
-                {/* Auto Renew */}
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                    Auto Renewal
-                  </p>
+                    <p className="mt-1 text-base font-semibold uppercase text-slate-900">
+                      {formatDateTime(domain.createdAt) ||
+                        "—"}
+                    </p>
+                  </div>
 
                   {/* Auto Renew */}
-                  <p className="mt-1 text-base font-semibold text-slate-900">
-                    {domain.autoRenew ? (
-                      <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-600">
-                        Enabled
-                      </span>
-                    ) : (
-                      <span className="inline-flex rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-500">
-                        Disabled
-                      </span>
-                    )}
-                  </p>
-                </div>
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                      Auto Renewal
+                    </p>
 
-                {/* Notes */}
-                <div className="md:col-span-3">
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                    Notes
-                  </p>
+                    {/* Auto Renew */}
+                    <p className="mt-1 text-base font-semibold text-slate-900">
+                      {domain.autoRenew ? (
+                        <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-600">
+                          Enabled
+                        </span>
+                      ) : (
+                        <span className="inline-flex rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-500">
+                          Disabled
+                        </span>
+                      )}
+                    </p>
+                  </div>
 
-                  <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-600">
-                    {domain.notes?.trim()
-                      ? domain.notes
-                      : "No notes available."}
-                  </p>
+                  {/* Notes */}
+                  <div className="md:col-span-3">
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                      Notes
+                    </p>
+
+                    <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-600">
+                      {domain.notes?.trim()
+                        ? domain.notes
+                        : "No notes available."}
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
-          </td>
-        </tr>
-      )}
+            </td>
+          </tr>
+        )
+      }
     </>
   );
 }

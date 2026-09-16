@@ -26,17 +26,16 @@ export async function GET(req: NextRequest) {
 
     // Get query parameters
     const { searchParams } = new URL(req.url);
-
     const search = searchParams.get("search")?.trim() || "";
-
-    const status = searchParams.get("status") || "";
-
+    const status = searchParams.get("status") || "all";
     const category = searchParams.get("category") || "";
-
     const purchasedFrom = searchParams.get("purchasedFrom") || "";
+    const sortBy = searchParams.get("sortBy") || "created_desc";
+    const expiryFilter = searchParams.get("expiryFilter") || "all";
 
     // Build MongoDB filter
     const filter: Record<string, any> = {};
+    let sort: Record<string, 1 | -1> = { createdAt: -1, };
 
     // Search
     if (search) {
@@ -83,23 +82,103 @@ export async function GET(req: NextRequest) {
       filter.purchasedFrom = purchasedFrom;
     }
 
+    // Pagination
+    const page = Math.max(Number(searchParams.get("page")) || 1, 1);
+    const limit = 20;
+    const skip = (page - 1) * limit;
+
+    // Total matching domains
+    const totalDomains = await Domain.countDocuments(filter);
+
+    const now = new Date();
+    const thirtyDaysFromNow = new Date(
+      now.getTime() + 30 * 24 * 60 * 60 * 1000
+    );
+    if (expiryFilter === "expired") {
+      filter.expiryDate = {
+        $lt: now,
+      };
+    }
+
+    if (expiryFilter === "expiring_30") {
+      filter.expiryDate = {
+        $gte: now,
+        $lte: thirtyDaysFromNow,
+      };
+    }
+
+    if (expiryFilter === "after_30") {
+      filter.expiryDate = {
+        $gt: thirtyDaysFromNow,
+      };
+    }
+
+    switch (sortBy) {
+      case "created_asc":
+        sort = {
+          createdAt: 1,
+        };
+        break;
+
+      case "created_desc":
+        sort = {
+          createdAt: -1,
+        };
+        break;
+
+      case "name_asc":
+        sort = {
+          domainName: 1,
+        };
+        break;
+
+      case "name_desc":
+        sort = {
+          domainName: -1,
+        };
+        break;
+
+      case "expiry_asc":
+        sort = {
+          expiryDate: 1,
+        };
+        break;
+
+      case "expiry_desc":
+        sort = {
+          expiryDate: -1,
+        };
+        break;
+
+      default:
+        sort = {
+          createdAt: -1,
+        };
+    }
+
+
+
     // Fetch domains
     const domains = await Domain.find(filter)
-      .sort({
-        expiryDate: 1,
-      })
+      .sort(sort)
+      .skip(skip)
+      .limit(limit)
       .lean();
 
-    return NextResponse.json(
-      {
-        success: true,
-        count: domains.length,
-        domains,
+    // Pagination information
+    const totalPages = Math.ceil(totalDomains / limit);
+
+    return NextResponse.json({
+      domains,
+      pagination: {
+        currentPage: page,
+        limit,
+        totalDomains,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
       },
-      {
-        status: 200,
-      },
-    );
+    });
   } catch (error: any) {
     console.error("GET DOMAINS ERROR:", error);
 

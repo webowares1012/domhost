@@ -8,6 +8,7 @@ import {
   AlertTriangle,
   XCircle,
   Server,
+  Edit,
 } from "lucide-react";
 
 import StatCard from "@/components/dashboard/StatCard";
@@ -129,82 +130,8 @@ export default function DashboardPage() {
         />
 
       </div>
-
-      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="flex items-center justify-between border-b p-5">
-          <div>
-            <h2 className="font-semibold text-slate-900">Upcoming Renewals</h2>
-
-            <p className="mt-1 text-xs text-slate-500">
-              Domains expiring within the next 30 days
-            </p>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[700px] text-left text-sm">
-            <thead className="bg-slate-50">
-              <tr>
-                <th className="px-5 py-3 font-medium text-slate-500">Domain</th>
-
-                <th className="px-5 py-3 font-medium text-slate-500">
-                  Purchase From
-                </th>
-
-                <th className="px-5 py-3 font-medium text-slate-500">Expiry</th>
-
-                <th className="px-5 py-3 font-medium text-slate-500">Action</th>
-              </tr>
-            </thead>
-
-            <tbody className="divide-y">
-              {upcomingDomains.map((domain) => (
-                <tr
-                  key={domain._id}
-                  className="hover:bg-slate-50"
-                >
-                  <td className="px-5 py-4 font-medium text-slate-900">
-                    {domain.domainName}
-                  </td>
-
-                  <td className="px-5 py-4 text-slate-600 capitalize">
-                    {domain.purchasedFrom || "—"}
-                  </td>
-
-                  <td className="px-5 py-4 text-slate-600">
-                    {new Date(
-                      domain.expiryDate
-                    ).toLocaleDateString()}
-                  </td>
-
-                  <td className="px-5 py-4">
-                    <a
-                      href={`/dashboard/domains/${domain._id}`}
-                      className="font-medium text-slate-900 hover:underline"
-                    >
-                      View
-                    </a>
-                  </td>
-                </tr>
-              ))}
-
-              {upcomingDomains.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={4}
-                    className="px-5 py-10 text-center text-slate-500"
-                  >
-                    No domains expiring within 30 days.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="flex items-center justify-between border-b p-5">
+      <section className="overflow-hidden rounded-sm border border-slate-200 bg-white shadow-sm">
+        <div className="flex items-center justify-between border-b p-5 bg-[#ff000063]">
           <div>
             <h2 className="font-semibold text-slate-900">
               Expired Domains
@@ -218,31 +145,31 @@ export default function DashboardPage() {
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[700px] text-left text-sm">
-            <thead className="bg-slate-50">
+            <thead className="bg-red-50 ">
               <tr>
-                <th className="px-5 py-3 font-medium text-slate-500">
+                <th className="px-5 py-3 font-large text-black-500">
                   Domain
                 </th>
 
-                <th className="px-5 py-3 font-medium text-slate-500">
-                  Purchased From
+                <th className="px-5 py-3 font-large text-black-500">
+                  Provider
                 </th>
 
-                <th className="px-5 py-3 font-medium text-slate-500">
+                <th className="px-5 py-3 font-large text-black-500">
                   Expiry
                 </th>
 
-                <th className="px-5 py-3 font-medium text-slate-500">
+                <th className="px-5 py-3 font-large text-black-500">
                   Action
                 </th>
               </tr>
             </thead>
 
-            <tbody className="divide-y">
+            <tbody className="-y">
               {expiredDomains.map((domain) => (
                 <tr
                   key={domain._id}
-                  className="hover:bg-red-50/40"
+                  className="hover:bg-red-50"
                 >
                   <td className="px-5 py-4 font-medium text-slate-900">
                     {domain.domainName}
@@ -263,7 +190,7 @@ export default function DashboardPage() {
                       href={`/dashboard/domains/${domain._id}`}
                       className="font-medium text-slate-900 hover:underline"
                     >
-                      View
+                      <Edit />
                     </a>
                   </td>
                 </tr>
@@ -283,6 +210,72 @@ export default function DashboardPage() {
           </table>
         </div>
       </section>
+      <section className="overflow-hidden rounded-sm border border-slate-200  shadow-sm">
+        <div className="flex items-center justify-between border-b p-5 bg-[#ffae4569]">
+          <div>
+            <h2 className="font-semibold text-slate-900">Upcoming Renewals</h2>
+            <p className="mt-1 text-xs text-slate-500">
+              Domains expiring within the next 30 days
+            </p>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[700px] text-left text-sm">
+            <thead className="bg-orange-50">
+              <tr>
+                <th className="px-5 py-3 font-large text-black-500">Domain</th>
+                <th className="px-5 py-3 font-large text-black-500"> Provider </th>
+                <th className="px-5 py-3 font-large text-black-500">Expiry</th>
+                <th className="px-5 py-3 font-large text-black-500">Action</th>
+              </tr>
+            </thead>
+
+            <tbody className="">
+              {upcomingDomains.map((domain) => (
+                <tr
+                  key={domain._id}
+                  className="hover:bg-orange-50"
+                >
+                  <td className="px-5 py-4 font-medium text-slate-900">
+                    {domain.domainName}
+                  </td>
+
+                  <td className="px-5 py-4 text-slate-600 capitalize">
+                    {domain.purchasedFrom || "—"}
+                  </td>
+
+                  <td className="px-5 py-4 text-orange-600">
+                    {new Date(domain.expiryDate).toLocaleDateString()}
+                  </td>
+
+                  <td className="px-5 py-4">
+                    <a
+                      href={`/dashboard/domains/${domain._id}`}
+                      className="font-medium text-slate-900 hover:underline"
+                    >
+                      <Edit />
+                    </a>
+                  </td>
+                </tr>
+              ))}
+
+              {upcomingDomains.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={4}
+                    className="px-5 py-10 text-center text-slate-500"
+                  >
+                    No domains expiring within 30 days.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+
     </div>
   );
 }

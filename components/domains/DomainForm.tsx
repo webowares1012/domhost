@@ -206,6 +206,51 @@ export default function DomainForm({ initialData, domainId }: DomainFormProps) {
     fetchProviders();
   }, []);
 
+  async function fetchProviders() {
+    try {
+      setProviderLoading(true);
+
+      const response = await fetch("/api/providers", {
+        method: "GET",
+        credentials: "include",
+        cache: "no-store",
+      });
+
+      const text = await response.text();
+
+      let data: any = {};
+
+      if (text) {
+        try {
+          data = JSON.parse(text);
+        } catch {
+          console.error(
+            "Providers API returned invalid JSON:",
+            text,
+          );
+        }
+      }
+
+      if (!response.ok) {
+        console.error(
+          "Providers API error:",
+          response.status,
+          data,
+        );
+
+        return;
+      }
+
+      setProviders(data.providers || []);
+    } catch (error) {
+      console.error(
+        "Fetch providers error:",
+        error,
+      );
+    } finally {
+      setProviderLoading(false);
+    }
+  }
 
   async function createCategory() {
     const name = newCategory.trim();
@@ -270,52 +315,6 @@ export default function DomainForm({ initialData, domainId }: DomainFormProps) {
       alert("Something went wrong while creating category");
     } finally {
       setCreatingCategory(false);
-    }
-  }
-
-  async function fetchProviders() {
-    try {
-      setProviderLoading(true);
-
-      const response = await fetch("/api/providers", {
-        method: "GET",
-        credentials: "include",
-        cache: "no-store",
-      });
-
-      const text = await response.text();
-
-      let data: any = {};
-
-      if (text) {
-        try {
-          data = JSON.parse(text);
-        } catch {
-          console.error(
-            "Providers API returned invalid JSON:",
-            text,
-          );
-        }
-      }
-
-      if (!response.ok) {
-        console.error(
-          "Providers API error:",
-          response.status,
-          data,
-        );
-
-        return;
-      }
-
-      setProviders(data.providers || []);
-    } catch (error) {
-      console.error(
-        "Fetch providers error:",
-        error,
-      );
-    } finally {
-      setProviderLoading(false);
     }
   }
 
@@ -500,7 +499,7 @@ export default function DomainForm({ initialData, domainId }: DomainFormProps) {
             {/* Purchased From */}
             <div>
               <label className="mb-2 block text-sm font-medium text-slate-700">
-                Purchased From
+                Provider
                 <span className="ml-1 text-red-500">*</span>
               </label>
 
@@ -560,7 +559,7 @@ export default function DomainForm({ initialData, domainId }: DomainFormProps) {
               onChange={(value) => updateField("status", value)}
             >
               <option value="active">Active</option>
-              <option value="expiring">Banned</option>
+              <option value="banned">Banned</option>
             </SelectField>
 
             {/* Purchase Date */}

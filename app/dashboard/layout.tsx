@@ -4,6 +4,7 @@ import { useState } from "react";
 import Sidebar from "@/components/dashboard/Sidebar";
 import AuthGuard from "@/components/auth/AuthGuard";
 import Header from "@/components/dashboard/Header";
+import SessionTimeout from "@/components/auth/SessionTimeout";
 
 export default function DashboardLayout({
   children,
@@ -30,6 +31,7 @@ export default function DashboardLayout({
           <main className="p-4 sm:p-6">
             {children}
           </main>
+          <SessionTimeout />
         </div>
       </div>
     </AuthGuard>
