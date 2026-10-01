@@ -3,6 +3,8 @@
 :root {
   --background: #f8fafc;
   --foreground: #0f172a;
+  --darkBackground: #0f172a;
+  --darkForeground: #f8fafc;
 }
 
 * {
@@ -25,6 +27,11 @@ body {
     BlinkMacSystemFont,
     "Segoe UI",
     sans-serif;
+}
+
+.dark body {
+  background: var(--darkBackground);
+  color: var(--darkForeground);
 }
 
 button,

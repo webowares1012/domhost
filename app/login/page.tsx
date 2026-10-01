@@ -1,14 +1,15 @@
 "use client";
 
-import {  SyntheticEvent, useState } from "react";
+import { SyntheticEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Eye, EyeOff } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -78,16 +79,44 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium">Password</label>
+            <label className="mb-2 block text-sm font-medium">
+              Password
+            </label>
 
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none focus:border-slate-500"
-              placeholder="••••••••"
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="
+        w-full rounded-xl border border-slate-200
+        px-4 py-3 pr-12 outline-none
+        focus:border-slate-500
+        dark:border-slate-700 dark:bg-slate-800
+        dark:text-white dark:focus:border-slate-400
+      "
+                placeholder="••••••••"
+              />
+
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                className="
+        absolute right-3 top-1/2 -translate-y-1/2
+        text-slate-500 transition
+        hover:text-slate-700
+        dark:text-slate-400 dark:hover:text-slate-200
+      "
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? (
+                  <EyeOff className="h-5 w-5" />
+                ) : (
+                  <Eye className="h-5 w-5" />
+                )}
+              </button>
+            </div>
           </div>
 
           <button

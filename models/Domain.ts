@@ -93,6 +93,9 @@ const DomainSchema = new Schema<IDomain>(
   },
 );
 
+DomainSchema.index({
+  expiryDate: 1,
+});
 
 const Domain: Model<IDomain> =
   mongoose.models.Domain || mongoose.model<IDomain>("Domain", DomainSchema);

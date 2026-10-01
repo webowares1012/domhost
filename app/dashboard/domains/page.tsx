@@ -75,6 +75,50 @@ export default function DomainsPage() {
   const [providerLoading, setProviderLoading] = useState(true);
   const [sortBy, setSortBy] = useState("created_desc");
   const [expiryFilter, setExpiryFilter] = useState("all");
+  const [selectedDomains, setSelectedDomains] = useState<string[]>([]);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+
+  const currentPageIds = domains.map((domain) => domain._id);
+
+  const allSelected =
+    domains.length > 0 &&
+    currentPageIds.every((id) =>
+      selectedDomains.includes(id),
+    );
+
+  const someSelected =
+    currentPageIds.some((id) =>
+      selectedDomains.includes(id),
+    ) && !allSelected;
+
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      // Remove current page domains from selection
+      setSelectedDomains((prev) =>
+        prev.filter(
+          (id) => !currentPageIds.includes(id),
+        ),
+      );
+    } else {
+      // Add current page domains
+      setSelectedDomains((prev) => [
+        ...new Set([
+          ...prev,
+          ...currentPageIds,
+        ]),
+      ]);
+    }
+  };
+
+  const toggleDomainSelection = (id: string) => {
+    setSelectedDomains((prev) =>
+      prev.includes(id)
+        ? prev.filter((selectedId) => selectedId !== id)
+        : [...prev, id],
+    );
+  };
+
+
 
   const handleSearchChange = (
     event: React.ChangeEvent<HTMLInputElement>
@@ -331,6 +375,68 @@ export default function DomainsPage() {
     }
   }
 
+  const deleteSelectedDomains = async () => {
+    if (selectedDomains.length === 0) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Are you sure you want to delete ${selectedDomains.length} selected domain${selectedDomains.length !== 1 ? "s" : ""
+      }?`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setBulkDeleting(true);
+
+      const res = await fetch("/api/domains/bulk", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          ids: selectedDomains,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(
+          data.message || "Failed to delete domains",
+        );
+      }
+
+      // Clear selection
+      setSelectedDomains([]);
+
+      // Reload domains
+      await fetchDomains();
+
+      alert(
+        data.message ||
+        "Domains deleted successfully",
+      );
+    } catch (error) {
+      console.error(
+        "BULK DELETE ERROR:",
+        error,
+      );
+
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Failed to delete domains",
+      );
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -358,9 +464,9 @@ export default function DomainsPage() {
 
       {/* Filters */}
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="flex flex-col gap-3 lg:flex-row">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-7">
           {/* Search */}
-          <div className="relative flex-1">
+          <div className="relative md:col-span-5 lg:col-span-4">
             <Search
               size={18}
               className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
@@ -386,7 +492,7 @@ export default function DomainsPage() {
                 e.target.value,
               )
             }
-            className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-slate-400"
+            className="w-full rounded-xl border border-slate-200 bg-white px-4  py-3 text-sm outline-none focus:border-slate-400"
           >
             <option value="all">
               All Status
@@ -409,7 +515,7 @@ export default function DomainsPage() {
               )
             }
             disabled={categoryLoading}
-            className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-slate-400"
+            className=" w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-slate-400"
           >
             <option value="">
               {categoryLoading
@@ -436,7 +542,7 @@ export default function DomainsPage() {
               )
             }
             disabled={providerLoading}
-            className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-slate-400"
+            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-slate-400"
           >
             <option value="">
               {providerLoading
@@ -460,7 +566,7 @@ export default function DomainsPage() {
               setExpiryFilter(e.target.value);
               setCurrentPage(1);
             }}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
           >
             <option value="all">All</option>
             <option value="expired">Expired</option>
@@ -474,7 +580,7 @@ export default function DomainsPage() {
               setSortBy(e.target.value);
               setCurrentPage(1);
             }}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
           >
             <option value="created_desc">Newest</option>
             <option value="created_asc">Oldest</option>
@@ -499,9 +605,9 @@ export default function DomainsPage() {
                     "all",
                   );
                 }}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-600 transition hover:bg-slate-300 bg-slate-200"
               >
-                <X size={16} />
+                {/* <X size={16} /> */}
 
                 Clear
               </button>
@@ -513,7 +619,37 @@ export default function DomainsPage() {
       <div className="text-sm text-slate-500">
         Showing {domains.length} of {totalDomains} domains
       </div>
+      {selectedDomains.length > 0 && (
+        <div className="mb-4 flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+          <div className="text-sm font-medium text-slate-700">
+            {selectedDomains.length} domain
+            {selectedDomains.length !== 1 ? "s" : ""} selected
+          </div>
 
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setSelectedDomains([])}
+              className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
+            >
+              Clear Selection
+            </button>
+
+            <button
+              type="button"
+              onClick={deleteSelectedDomains}
+              disabled={bulkDeleting}
+              className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Trash2 size={16} />
+
+              {bulkDeleting
+                ? "Deleting..."
+                : "Delete Selected"}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Table */}
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -521,6 +657,20 @@ export default function DomainsPage() {
           <table className="w-full min-w-[1000px] text-left text-sm">
             <thead className="bg-slate-50">
               <tr>
+                <th className="w-12 px-5 py-4">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    ref={(element) => {
+                      if (element) {
+                        element.indeterminate = someSelected;
+                      }
+                    }}
+                    onChange={toggleSelectAll}
+                    className="h-4 w-4 cursor-pointer rounded border-slate-300 text-slate-900 focus:ring-slate-500"
+                    aria-label="Select all domains on this page"
+                  />
+                </th>
                 <th className="px-5 py-4 font-semibold text-slate-600">
                   S.No
                 </th>
@@ -586,14 +736,14 @@ export default function DomainsPage() {
                       isMenuOpen={
                         isMenuOpen
                       }
-                      onToggleExpanded={() =>
-                        toggleExpanded(
-                          domain._id,
-                        )
+                      isSelected={selectedDomains.includes(domain._id)}
+                      onToggleSelected={() =>
+                        toggleDomainSelection(domain._id)
                       }
-                      onMenuToggle={(
-                        e,
-                      ) => {
+                      onToggleExpanded={() =>
+                        toggleExpanded(domain._id,)
+                      }
+                      onMenuToggle={(e,) => {
                         e.stopPropagation();
 
                         setOpenMenu(
@@ -677,17 +827,14 @@ export default function DomainsPage() {
   );
 }
 
-/*
-|--------------------------------------------------------------------------
-| Domain Row
-|--------------------------------------------------------------------------
-*/
 
 function DomainRow({
   domain,
   index,
   isExpanded,
   isMenuOpen,
+  isSelected,
+  onToggleSelected,
   onToggleExpanded,
   onMenuToggle,
   onDelete,
@@ -696,6 +843,8 @@ function DomainRow({
   index: number;
   isExpanded: boolean;
   isMenuOpen: boolean;
+  isSelected: boolean;
+  onToggleSelected: () => void;
   onToggleExpanded: () => void;
   onMenuToggle: (
     e: React.MouseEvent<HTMLButtonElement>,
@@ -717,6 +866,19 @@ function DomainRow({
           : "hover:bg-slate-50"
           }`}
       >
+        <td className="w-12 px-5 py-4">
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={(e) => {
+              e.stopPropagation();
+              onToggleSelected();
+            }}
+            onClick={(e) => e.stopPropagation()}
+            className="h-4 w-4 cursor-pointer rounded border-slate-300 text-slate-900 focus:ring-slate-500"
+            aria-label={`Select ${domain.domainName}`}
+          />
+        </td>
         {/* S.No */}
         <td className="px-5 py-4">
           <span className="font-medium text-slate-500">
@@ -905,7 +1067,6 @@ function DomainRow({
     </>
   );
 }
-
 
 type DomainStatus = "active" | "expiring" | "expired" | "inactive";
 

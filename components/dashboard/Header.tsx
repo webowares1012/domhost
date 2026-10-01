@@ -7,6 +7,7 @@ import {
   ChevronDown,
   Menu,
 } from "lucide-react";
+import ThemeToggle from "../theme/ThemeToggle";
 
 interface UserData {
   id: string;
@@ -143,6 +144,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
           RIGHT SECTION
       ================================= */}
       <div className="ml-auto flex items-center gap-2 sm:gap-3">
+        <ThemeToggle />
         {/* Notification */}
         <button
           type="button"

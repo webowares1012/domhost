@@ -1,8 +1,8 @@
 "use client";
 
-import { SyntheticEvent, useEffect, useState } from "react";
+import { SyntheticEvent, useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Plus, Save, X } from "lucide-react";
+import { ChevronDown, Trash2, Loader2, Plus, Save, X } from "lucide-react";
 
 interface DomainFormProps {
   initialData?: {
@@ -55,12 +55,15 @@ export default function DomainForm({ initialData, domainId }: DomainFormProps) {
   const [showCategoryForm, setShowCategoryForm] = useState(false);
   const [newCategory, setNewCategory] = useState("");
   const [creatingCategory, setCreatingCategory] = useState(false);
+  const [categoriesDropdownOpen, setCategoriesDropdownOpen] = useState(false);
+
 
   const [providers, setProviders] = useState<Provider[]>([]);
   const [providerLoading, setProviderLoading] = useState(true);
   const [showProviderForm, setShowProviderForm] = useState(false);
   const [newProvider, setNewProvider] = useState("");
   const [creatingProvider, setCreatingProvider] = useState(false);
+  const [providerDropdownOpen, setProviderDropdownOpen] = useState(false);
 
   const [form, setForm] = useState<DomainFormData>({
     domainName: initialData?.domainName || "",
@@ -81,6 +84,43 @@ export default function DomainForm({ initialData, domainId }: DomainFormProps) {
     autoRenew: initialData?.autoRenew || false,
     notes: initialData?.notes || "",
   });
+
+  const providerDropdownRef = useRef<HTMLDivElement>(null);
+  const categoriesDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        providerDropdownRef.current &&
+        !providerDropdownRef.current.contains(
+          event.target as Node,
+        )
+      ) {
+        setProviderDropdownOpen(false);
+      }
+
+      if (
+        categoriesDropdownRef.current &&
+        !categoriesDropdownRef.current.contains(
+          event.target as Node,
+        )
+      ) {
+        setCategoriesDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener(
+      "mousedown",
+      handleClickOutside,
+    );
+
+    return () => {
+      document.removeEventListener(
+        "mousedown",
+        handleClickOutside,
+      );
+    };
+  }, []);
 
   function updateField<K extends keyof DomainFormData>(
     field: K,
@@ -318,6 +358,64 @@ export default function DomainForm({ initialData, domainId }: DomainFormProps) {
     }
   }
 
+  const deleteCategory = async (id: string) => {
+    try {
+      const category = categories.find(
+        (item) => item._id === id,
+      );
+
+      if (!category) return;
+
+      const confirmed = window.confirm(
+        `Are you sure you want to delete "${category.name}"?`,
+      );
+
+      if (!confirmed) return;
+
+      const res = await fetch("/api/categories", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({ id }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        if (res.status === 409) {
+          alert(
+            data.domain?.domainName
+              ? `Cannot delete "${category.name}".\n\nIt is being used by domain: ${data.domain.domainName}`
+              : data.message,
+          );
+
+          return;
+        }
+
+        alert(data.message || "Failed to delete category");
+        return;
+      }
+
+      // If deleted category was selected
+      if (form.category === category.slug) {
+        updateField("category", "");
+      }
+
+      // Refresh categories
+      await fetchCategories();
+
+      alert("Category deleted successfully");
+    } catch (error) {
+      console.error("DELETE CATEGORY ERROR:", error);
+
+      alert(
+        "Something went wrong while deleting the category.",
+      );
+    }
+  };
+
   async function createProvider() {
     const name = newProvider.trim();
 
@@ -420,6 +518,42 @@ export default function DomainForm({ initialData, domainId }: DomainFormProps) {
     }
   }
 
+  const deleteProvider = async (id: string) => {
+    try {
+      const res = await fetch("/api/providers", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({ id }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        if (res.status === 409 && data.domain?.domainName) {
+          alert(
+            `Cannot delete this provider.\n\n` +
+            `It is being used by: ${data.domain.domainName}`
+          );
+          return;
+        }
+
+        alert(data.message || "Failed to delete provider");
+        return;
+      }
+
+      alert(data.message);
+
+      // Reload providers
+      fetchProviders();
+    } catch (error) {
+      console.error("DELETE PROVIDER ERROR:", error);
+      alert("Something went wrong while deleting the provider.");
+    }
+  };
+
   return (
     <>
       <form onSubmit={submit} className="space-y-6">
@@ -453,7 +587,7 @@ export default function DomainForm({ initialData, domainId }: DomainFormProps) {
               </label>
 
               <div className="flex gap-2">
-                <select
+                {/* <select
                   value={form.category}
                   required
                   onChange={(e) =>
@@ -476,7 +610,88 @@ export default function DomainForm({ initialData, domainId }: DomainFormProps) {
                       {category.name}
                     </option>
                   ))}
-                </select>
+                </select> */}
+
+                <div
+                  ref={categoriesDropdownRef}
+                  className="relative flex-1"
+                >
+                  <button
+                    type="button"
+                    disabled={categoryLoading}
+                    onClick={() =>
+                      setCategoriesDropdownOpen((prev) => !prev)
+                    }
+                    className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition hover:border-slate-300 focus:border-slate-400 focus:ring-2 focus:ring-slate-100 disabled:cursor-not-allowed disabled:bg-slate-50"
+                  >
+                    <span
+                      className={
+                        form.category
+                          ? "text-slate-900 "
+                          : "text-slate-400"
+                      }
+                    >
+                      {categoryLoading
+                        ? "Loading categories..."
+                        : categories.find(
+                          (category) =>
+                            category.slug === form.category,
+                        )?.name || "Select category"}
+                    </span>
+
+                    <ChevronDown
+                      size={18}
+                      className={`shrink-0 text-slate-400 transition-transform ${categoriesDropdownOpen ? "rotate-180" : ""
+                        }`}
+                    />
+                  </button>
+
+                  {/* Dropdown */}
+                  {categoriesDropdownOpen && !categoryLoading && (
+                    <div className="absolute left-0 top-full z-50 mt-2 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg ">
+                      <div className="max-h-60 overflow-y-auto p-1">
+                        {categories.length === 0 ? (
+                          <div className="px-3 py-3 text-sm text-slate-500">
+                            No providers found
+                          </div>
+                        ) : (
+                          categories.map((category) => (
+                            <div
+                              key={category._id}
+                              className="flex items-center gap-2 rounded-lg px-2 py-1 hover:bg-slate-50 "
+                            >
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  updateField(
+                                    "category",
+                                    category.slug,
+                                  );
+                                  setCategoriesDropdownOpen(false);
+                                }}
+                                className="flex-1 rounded-lg px-2 py-2 text-left text-sm text-slate-700 "
+                              >
+                                {category.name}
+                              </button>
+
+                              {/* Delete */}
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  deleteCategory(category._id)
+                                }
+                                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-red-50 hover:text-red-600 "
+                                title={`Delete ${category.name}`}
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
 
                 <button
                   type="button"
@@ -504,39 +719,93 @@ export default function DomainForm({ initialData, domainId }: DomainFormProps) {
               </label>
 
               <div className="flex gap-2">
-                <select
-                  value={form.purchasedFrom}
-                  required
-                  onChange={(e) =>
-                    updateField(
-                      "purchasedFrom",
-                      e.target.value,
-                    )
-                  }
-                  disabled={providerLoading}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100 disabled:bg-slate-50"
+                {/* Provider Dropdown Container */}
+                <div
+                  ref={providerDropdownRef}
+                  className="relative flex-1"
                 >
-                  <option value="">
-                    {providerLoading
-                      ? "Loading providers..."
-                      : "Select provider"}
-                  </option>
-
-                  {providers.map((provider) => (
-                    <option
-                      key={provider._id}
-                      value={provider.slug}
+                  <button
+                    type="button"
+                    disabled={providerLoading}
+                    onClick={() =>
+                      setProviderDropdownOpen((prev) => !prev)
+                    }
+                    className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition hover:border-slate-300 focus:border-slate-400 focus:ring-2 focus:ring-slate-100 disabled:cursor-not-allowed disabled:bg-slate-50"
+                  >
+                    <span
+                      className={
+                        form.purchasedFrom
+                          ? "text-slate-900 "
+                          : "text-slate-400"
+                      }
                     >
-                      {provider.name}
-                    </option>
-                  ))}
-                </select>
+                      {providerLoading
+                        ? "Loading providers..."
+                        : providers.find(
+                          (provider) =>
+                            provider.slug === form.purchasedFrom,
+                        )?.name || "Select provider"}
+                    </span>
 
+                    <ChevronDown
+                      size={18}
+                      className={`shrink-0 text-slate-400 transition-transform ${providerDropdownOpen ? "rotate-180" : ""
+                        }`}
+                    />
+                  </button>
+
+                  {/* Dropdown */}
+                  {providerDropdownOpen && !providerLoading && (
+                    <div className="absolute left-0 top-full z-50 mt-2 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg ">
+                      <div className="max-h-60 overflow-y-auto p-1">
+                        {providers.length === 0 ? (
+                          <div className="px-3 py-3 text-sm text-slate-500">
+                            No providers found
+                          </div>
+                        ) : (
+                          providers.map((provider) => (
+                            <div
+                              key={provider._id}
+                              className="flex items-center gap-2 rounded-lg px-2 py-1 hover:bg-slate-50 "
+                            >
+                              {/* Select Provider */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  updateField(
+                                    "purchasedFrom",
+                                    provider.slug,
+                                  );
+                                  setProviderDropdownOpen(false);
+                                }}
+                                className="flex-1 rounded-lg px-2 py-2 text-left text-sm text-slate-700 "
+                              >
+                                {provider.name}
+                              </button>
+
+                              {/* Delete */}
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  deleteProvider(provider._id)
+                                }
+                                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-red-50 hover:text-red-600 "
+                                title={`Delete ${provider.name}`}
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Add Provider */}
                 <button
                   type="button"
-                  onClick={() =>
-                    setShowProviderForm(true)
-                  }
+                  onClick={() => setShowProviderForm(true)}
                   className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
                   <Plus size={17} />
@@ -581,7 +850,7 @@ export default function DomainForm({ initialData, domainId }: DomainFormProps) {
 
             {/* Renewal Cost */}
             <Field
-              label="Renewal Cost"
+              label="Purchased Cost"
               type="number"
               value={form.renewalCost}
               onChange={(value) => updateField("renewalCost", value)}
@@ -681,6 +950,7 @@ export default function DomainForm({ initialData, domainId }: DomainFormProps) {
           </button>
         </div>
       </form>
+
       {showCategoryForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
